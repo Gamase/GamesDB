@@ -1,0 +1,848 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GamesDB — Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  :root {
+    --bg:        #0d1117;
+    --bg2:       #161b22;
+    --bg3:       #1c2330;
+    --border:    #30363d;
+    --blue:      #58a6ff;
+    --green:     #3fb950;
+    --yellow:    #d29922;
+    --red:       #f85149;
+    --purple:    #bc8cff;
+    --text:      #e6edf3;
+    --muted:     #7d8590;
+    --steam:     #66c0f4;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Rajdhani', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  /* ── HEADER ── */
+  .header {
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    padding: 0 28px;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .header-logo {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--steam);
+    letter-spacing: -0.5px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .header-logo svg { width: 22px; height: 22px; }
+
+  .header-sep { flex: 1; }
+
+  .live-badge {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--green);
+    background: rgba(63,185,80,.1);
+    border: 1px solid rgba(63,185,80,.3);
+    border-radius: 20px;
+    padding: 4px 12px;
+  }
+
+  .live-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--green);
+    animation: pulse 1.6s infinite;
+  }
+
+  @keyframes pulse {
+    0%,100% { opacity: 1; transform: scale(1); }
+    50%      { opacity: 0.4; transform: scale(0.85); }
+  }
+
+  .refresh-btn {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    border-radius: 6px;
+    padding: 5px 12px;
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all .15s;
+  }
+
+  .refresh-btn:hover { border-color: var(--steam); color: var(--steam); }
+
+  #last-update {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  /* ── LAYOUT ── */
+  .main {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 24px 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  /* ── STAT CARDS ── */
+  .stat-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0,1fr));
+    gap: 12px;
+  }
+
+  .stat-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 20px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--accent, var(--blue));
+  }
+
+  .stat-label {
+    font-size: 12px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    margin-bottom: 8px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .stat-value {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--text);
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+
+  .stat-sub {
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  /* ── PANELS ── */
+  .panel-row {
+    display: grid;
+    grid-template-columns: 3fr 2fr;
+    gap: 16px;
+  }
+
+  .panel {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+
+  .panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .panel-title {
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    color: var(--muted);
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .panel-body { padding: 0; }
+
+  /* ── TOP JUEGOS TABLE ── */
+  .games-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+  }
+
+  .games-table th {
+    text-align: left;
+    padding: 10px 16px;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    color: var(--muted);
+    border-bottom: 1px solid var(--border);
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 400;
+  }
+
+  .games-table td {
+    padding: 11px 16px;
+    border-bottom: 1px solid rgba(48,54,61,.5);
+    vertical-align: middle;
+  }
+
+  .games-table tr:last-child td { border-bottom: none; }
+
+  .games-table tr:hover td { background: rgba(88,166,255,.04); }
+
+  .rank-num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--muted);
+    width: 30px;
+  }
+
+  .game-name {
+    font-weight: 600;
+    color: var(--text);
+    max-width: 220px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .game-dev {
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .players-num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    color: var(--green);
+    font-weight: 500;
+  }
+
+  .price-tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--steam);
+  }
+
+  .rating-badge {
+    font-size: 12px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .rating-pos  { background: rgba(63,185,80,.15);  color: var(--green); }
+  .rating-mix  { background: rgba(210,153,34,.15); color: var(--yellow); }
+  .rating-neg  { background: rgba(248,81,73,.15);  color: var(--red); }
+
+  /* ── STATUS PANEL ── */
+  .status-list { padding: 12px 16px; display: flex; flex-direction: column; gap: 10px; }
+
+  .status-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 14px;
+    background: var(--bg3);
+    border-radius: 8px;
+    border: 1px solid var(--border);
+  }
+
+  .status-left { display: flex; flex-direction: column; gap: 3px; }
+  .status-name { font-size: 14px; font-weight: 600; }
+  .status-detail { font-size: 12px; color: var(--muted); font-family: 'JetBrains Mono', monospace; }
+
+  .status-pill {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 20px;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .pill-ok       { background: rgba(63,185,80,.15);  color: var(--green);  border: 1px solid rgba(63,185,80,.3); }
+  .pill-warn     { background: rgba(210,153,34,.15); color: var(--yellow); border: 1px solid rgba(210,153,34,.3); }
+  .pill-error    { background: rgba(248,81,73,.15);  color: var(--red);    border: 1px solid rgba(248,81,73,.3); }
+  .pill-loading  { background: rgba(125,133,144,.1); color: var(--muted);  border: 1px solid var(--border); }
+
+  /* ── BOTTOM ROW ── */
+  .bottom-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+
+  /* ── BITACORA ── */
+  .log-list { padding: 0; list-style: none; max-height: 340px; overflow-y: auto; }
+
+  .log-list::-webkit-scrollbar { width: 4px; }
+  .log-list::-webkit-scrollbar-track { background: transparent; }
+  .log-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  .log-item {
+    display: grid;
+    grid-template-columns: 70px 60px 80px 1fr 1fr;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 16px;
+    border-bottom: 1px solid rgba(48,54,61,.5);
+    font-size: 13px;
+    transition: background .1s;
+  }
+
+  .log-item:hover { background: rgba(88,166,255,.04); }
+  .log-item:last-child { border-bottom: none; }
+
+  .log-op {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 3px;
+    text-align: center;
+  }
+
+  .op-INSERT { background: rgba(63,185,80,.2);  color: var(--green); }
+  .op-UPDATE { background: rgba(88,166,255,.2); color: var(--blue); }
+  .op-DELETE { background: rgba(248,81,73,.2);  color: var(--red); }
+
+  .log-tabla { color: var(--purple); font-size: 12px; font-family: 'JetBrains Mono', monospace; }
+  .log-time  { color: var(--muted);  font-size: 11px; font-family: 'JetBrains Mono', monospace; }
+  .log-user  { color: var(--muted);  font-size: 12px; }
+  .log-campos { color: var(--steam); font-size: 11px; font-family: 'JetBrains Mono', monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  /* ── CHART ── */
+  .chart-wrap { padding: 16px; position: relative; height: 300px; }
+
+  /* ── LOADING / ERROR ── */
+  .skeleton {
+    height: 14px;
+    background: linear-gradient(90deg, var(--bg3) 25%, var(--bg2) 50%, var(--bg3) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+    border-radius: 4px;
+    margin: 4px 0;
+  }
+
+  @keyframes shimmer {
+    0%   { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+
+  .error-msg {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--red);
+    padding: 16px;
+  }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 1100px) {
+    .panel-row  { grid-template-columns: 1fr; }
+    .bottom-row { grid-template-columns: 1fr; }
+    .stat-grid  { grid-template-columns: repeat(2, 1fr); }
+  }
+
+  @media (max-width: 600px) {
+    .stat-grid { grid-template-columns: 1fr 1fr; }
+    .main { padding: 16px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ─── HEADER ─── -->
+<header class="header">
+  <div class="header-logo">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+      <path d="M2 17l10 5 10-5"/>
+      <path d="M2 12l10 5 10-5"/>
+    </svg>
+    GamesDB
+  </div>
+  <span style="color:var(--border);font-size:18px;">|</span>
+  <span style="font-size:13px;color:var(--muted);">Steam Analytics Dashboard</span>
+  <div class="header-sep"></div>
+  <span id="last-update">—</span>
+  <button class="refresh-btn" onclick="loadAll()">↻ Actualizar</button>
+  <div class="live-badge"><div class="live-dot"></div>LIVE</div>
+</header>
+
+<!-- ─── MAIN ─── -->
+<main class="main">
+
+  <!-- STATS GENERALES -->
+  <div class="stat-grid">
+    <div class="stat-card" style="--accent: var(--blue)">
+      <div class="stat-label">Total Juegos</div>
+      <div class="stat-value" id="s-juegos">—</div>
+      <div class="stat-sub" id="s-nuevos">cargando...</div>
+    </div>
+    <div class="stat-card" style="--accent: var(--green)">
+      <div class="stat-label">Jugadores Online</div>
+      <div class="stat-value" id="s-jugadores">—</div>
+      <div class="stat-sub" id="s-prom">promedio por juego</div>
+    </div>
+    <div class="stat-card" style="--accent: var(--purple)">
+      <div class="stat-label">Rating Global</div>
+      <div class="stat-value" id="s-rating">—</div>
+      <div class="stat-sub">porcentaje positivo</div>
+    </div>
+    <div class="stat-card" style="--accent: var(--yellow)">
+      <div class="stat-label">Última Carga</div>
+      <div class="stat-value" style="font-size:18px;" id="s-ultima">—</div>
+      <div class="stat-sub" id="s-resenas">con reseñas</div>
+    </div>
+  </div>
+
+  <!-- PANEL ROW 1: Tabla + Estado -->
+  <div class="panel-row">
+
+    <!-- TOP JUEGOS -->
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-title">▶ Top Juegos — Jugadores en Tiempo Real</span>
+        <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted)" id="top-ts">—</span>
+      </div>
+      <div class="panel-body">
+        <table class="games-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Juego</th>
+              <th>Jugadores</th>
+              <th>Pico</th>
+              <th>Precio</th>
+              <th>Rating</th>
+            </tr>
+          </thead>
+          <tbody id="top-tbody">
+            <tr><td colspan="6" class="error-msg" style="color:var(--muted)">Cargando...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ESTADO SISTEMAS -->
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-title">◈ Estado de Infraestructura</span>
+      </div>
+      <div class="panel-body">
+        <div class="status-list" id="status-list">
+          <div class="status-item">
+            <div class="status-left">
+              <span class="status-name">SQL Server Principal</span>
+              <span class="status-detail">DESKTOP-M1FKU4T\SQLDEV</span>
+            </div>
+            <span class="status-pill pill-loading" id="pill-sql">...</span>
+          </div>
+          <div class="status-item">
+            <div class="status-left">
+              <span class="status-name">Mirroring → PC Casa</span>
+              <span class="status-detail" id="mirror-partner">—</span>
+            </div>
+            <span class="status-pill pill-loading" id="pill-mirror">...</span>
+          </div>
+          <div class="status-item">
+            <div class="status-left">
+              <span class="status-name">Linked Server MySQL</span>
+              <span class="status-detail" id="ls-detail">Nintendo Switch / KUbuntu</span>
+            </div>
+            <span class="status-pill pill-loading" id="pill-ls">...</span>
+          </div>
+          <div class="status-item">
+            <div class="status-left">
+              <span class="status-name">Bitácora Central</span>
+              <span class="status-detail">Bitacora_Central.dbo.bitacora</span>
+            </div>
+            <span class="status-pill pill-loading" id="pill-bita">...</span>
+          </div>
+          <div class="status-item">
+            <div class="status-left">
+              <span class="status-name">Steam Loader</span>
+              <span class="status-detail">steam_scheduler.py · cada 5 min</span>
+            </div>
+            <span class="status-pill pill-loading" id="pill-loader">...</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- PANEL ROW 2: Géneros chart + Bitácora -->
+  <div class="bottom-row">
+
+    <!-- CHART GÉNEROS -->
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-title">◐ Juegos por Género</span>
+      </div>
+      <div class="chart-wrap">
+        <canvas id="generoChart" role="img" aria-label="Gráfica de juegos por género">Cargando datos de géneros...</canvas>
+      </div>
+    </div>
+
+    <!-- BITÁCORA -->
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-title">◎ Bitácora — Cambios Recientes</span>
+        <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted)">últimos 20</span>
+      </div>
+      <div class="panel-body">
+        <div style="display:grid;grid-template-columns:70px 60px 80px 1fr 1fr;gap:10px;padding:8px 16px;border-bottom:1px solid var(--border);">
+          <span style="font-size:10px;color:var(--muted);text-transform:uppercase;font-family:'JetBrains Mono',monospace;letter-spacing:.06em;">Op</span>
+          <span style="font-size:10px;color:var(--muted);text-transform:uppercase;font-family:'JetBrains Mono',monospace;letter-spacing:.06em;">Tabla</span>
+          <span style="font-size:10px;color:var(--muted);text-transform:uppercase;font-family:'JetBrains Mono',monospace;letter-spacing:.06em;">Hora</span>
+          <span style="font-size:10px;color:var(--muted);text-transform:uppercase;font-family:'JetBrains Mono',monospace;letter-spacing:.06em;">Usuario</span>
+          <span style="font-size:10px;color:var(--muted);text-transform:uppercase;font-family:'JetBrains Mono',monospace;letter-spacing:.06em;">Campos</span>
+        </div>
+        <ul class="log-list" id="log-list">
+          <li style="padding:16px;color:var(--muted);font-size:13px;">Cargando bitácora...</li>
+        </ul>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<script>
+// ─── Helpers ───────────────────────────────────────────────────────────────
+
+function fmt(n) {
+  if (n == null) return '—';
+  return Number(n).toLocaleString('es-MX');
+}
+
+function fmtTime(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+}
+
+function ratingClass(desc) {
+  if (!desc) return '';
+  if (desc.includes('Positive')) return 'rating-pos';
+  if (desc.includes('Negative')) return 'rating-neg';
+  return 'rating-mix';
+}
+
+function ratingShort(desc) {
+  if (!desc) return '—';
+  const map = {
+    'Overwhelmingly Positive': 'Overwhelm+',
+    'Very Positive':           'Muy Pos.',
+    'Positive':                'Positivo',
+    'Mostly Positive':         'Mayorm+',
+    'Mixed':                   'Mixto',
+    'Mostly Negative':         'Mayorm-',
+    'Negative':                'Negativo',
+    'Very Negative':           'Muy Neg.',
+    'Overwhelmingly Negative': 'Overwhelm-',
+  };
+  return map[desc] || desc;
+}
+
+// ─── API calls ─────────────────────────────────────────────────────────────
+
+async function fetchJSON(url) {
+  try {
+    const r = await fetch(url);
+    return await r.json();
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+}
+
+// ─── Render Stats ──────────────────────────────────────────────────────────
+
+async function loadStats() {
+  const res = await fetchJSON('/api/stats');
+  if (!res.ok) return;
+  const d = res.data;
+
+  document.getElementById('s-juegos').textContent    = fmt(d.total_juegos);
+  document.getElementById('s-nuevos').textContent    = `+${d.juegos_nuevos_hoy ?? 0} hoy`;
+  document.getElementById('s-jugadores').textContent = fmt(d.jugadores_actuales_total);
+  document.getElementById('s-prom').textContent      = `≈ ${fmt(d.promedio_jugadores)} promedio`;
+  document.getElementById('s-rating').textContent    = `${d.rating_promedio_global ?? '—'}%`;
+  document.getElementById('s-resenas').textContent   = `${fmt(d.juegos_con_resenas)} con reseñas`;
+
+  const ua = d.ultima_actualizacion;
+  document.getElementById('s-ultima').textContent = ua ? fmtTime(ua) : '—';
+
+  // Pill bitácora — si stats cargó, la conexión a SQL está ok
+  setPill('pill-sql',  'ONLINE',  'pill-ok');
+  setPill('pill-bita', 'ONLINE',  'pill-ok');
+
+  // Inferir si el loader está reciente (< 10 min)
+  if (ua) {
+    const diff = (Date.now() - new Date(ua).getTime()) / 60000;
+    setPill('pill-loader', diff < 10 ? 'ACTIVO' : 'INACTIVO', diff < 10 ? 'pill-ok' : 'pill-warn');
+  }
+}
+
+// ─── Render Top Juegos ─────────────────────────────────────────────────────
+
+async function loadTopJuegos() {
+  const res = await fetchJSON('/api/top_juegos?limit=10');
+  const tbody = document.getElementById('top-tbody');
+
+  if (!res.ok) {
+    tbody.innerHTML = `<tr><td colspan="6" class="error-msg">Error: ${res.error}</td></tr>`;
+    return;
+  }
+
+  document.getElementById('top-ts').textContent = `actualizado ${fmtTime(new Date().toISOString())}`;
+
+  tbody.innerHTML = res.data.map((g, i) => `
+    <tr>
+      <td class="rank-num">${i + 1}</td>
+      <td>
+        <div class="game-name">${g.nombre}</div>
+        <div class="game-dev">${g.desarrollador ?? '—'}</div>
+      </td>
+      <td class="players-num">${fmt(g.jugadores_actuales)}</td>
+      <td style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--muted)">${fmt(g.jugadores_pico)}</td>
+      <td class="price-tag">${g.precio === 0 ? 'Free' : '$' + Number(g.precio).toFixed(2)}</td>
+      <td>
+        <span class="rating-badge ${ratingClass(g.descripcion_general)}">
+          ${ratingShort(g.descripcion_general)}
+        </span>
+      </td>
+    </tr>
+  `).join('');
+}
+
+// ─── Render Estado Infra ────────────────────────────────────────────────────
+
+function setPill(id, text, cls) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = text;
+  el.className = `status-pill ${cls}`;
+}
+
+async function loadMirroring() {
+  const res = await fetchJSON('/api/mirroring');
+  if (!res.ok) {
+    setPill('pill-mirror', 'ERROR', 'pill-error');
+    return;
+  }
+
+  if (!res.data || res.data.length === 0) {
+    setPill('pill-mirror', 'SIN CONFIG', 'pill-warn');
+    return;
+  }
+
+  const m = res.data[0];
+  const estado = m.estado;
+  const cls =
+    estado === 'SYNCHRONIZED'  ? 'pill-ok' :
+    estado === 'SYNCHRONIZING' ? 'pill-warn' :
+    estado === 'SUSPENDED'     ? 'pill-warn' :
+    'pill-error';
+
+  setPill('pill-mirror', estado ?? 'DESCONOCIDO', cls);
+  document.getElementById('mirror-partner').textContent =
+    m.partner ?? '—';
+}
+
+async function loadLinkedServer() {
+  const res = await fetchJSON('/api/linked_server');
+  if (!res.ok) {
+    setPill('pill-ls', 'ERROR', 'pill-error');
+    return;
+  }
+
+  const ping = res.mysql_ping;
+  if (ping.ok) {
+    setPill('pill-ls', 'ONLINE', 'pill-ok');
+    document.getElementById('ls-detail').textContent =
+      `MySQL ${ping.version ?? ''}`;
+  } else {
+    setPill('pill-ls', 'OFFLINE', 'pill-error');
+    document.getElementById('ls-detail').textContent =
+      ping.error ? ping.error.substring(0, 50) : 'Sin respuesta';
+  }
+}
+
+// ─── Render Bitácora ───────────────────────────────────────────────────────
+
+async function loadBitacora() {
+  const res = await fetchJSON('/api/bitacora');
+  const ul = document.getElementById('log-list');
+
+  if (!res.ok) {
+    ul.innerHTML = `<li class="error-msg">Error: ${res.error}</li>`;
+    return;
+  }
+
+  ul.innerHTML = res.data.map(r => {
+    const campos = r.campos_cambiados
+      ? JSON.parse(r.campos_cambiados).join(', ')
+      : '—';
+    return `
+      <li class="log-item">
+        <span class="log-op op-${r.operacion}">${r.operacion}</span>
+        <span class="log-tabla">${r.tabla}</span>
+        <span class="log-time">${fmtTime(r.fecha)}</span>
+        <span class="log-user">${r.usuario ?? '—'}</span>
+        <span class="log-campos">${campos}</span>
+      </li>`;
+  }).join('');
+}
+
+// ─── Render Géneros Chart ──────────────────────────────────────────────────
+
+let generoChartInst = null;
+
+async function loadGeneros() {
+  const res = await fetchJSON('/api/generos');
+  if (!res.ok) return;
+
+  const labels  = res.data.map(g => g.genero);
+  const valores  = res.data.map(g => g.cantidad_juegos);
+  const ratings  = res.data.map(g => g.rating_promedio ?? 0);
+
+  const ctx = document.getElementById('generoChart').getContext('2d');
+  if (generoChartInst) generoChartInst.destroy();
+
+  generoChartInst = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'Juegos',
+          data: valores,
+          backgroundColor: 'rgba(88,166,255,0.5)',
+          borderColor:     '#58a6ff',
+          borderWidth: 1,
+          yAxisID: 'y',
+          order: 2,
+        },
+        {
+          label: 'Rating %',
+          data: ratings,
+          type: 'line',
+          borderColor:     '#3fb950',
+          backgroundColor: 'rgba(63,185,80,0.15)',
+          borderWidth: 2,
+          pointRadius: 4,
+          pointBackgroundColor: '#3fb950',
+          yAxisID: 'y2',
+          order: 1,
+          fill: true,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+      },
+      scales: {
+        x: {
+          ticks: {
+            color: '#7d8590',
+            font: { family: 'JetBrains Mono', size: 10 },
+            maxRotation: 35,
+            autoSkip: false,
+          },
+          grid: { color: 'rgba(48,54,61,0.6)' },
+        },
+        y: {
+          position: 'left',
+          ticks: { color: '#58a6ff', font: { size: 11 } },
+          grid: { color: 'rgba(48,54,61,0.6)' },
+          title: {
+            display: true,
+            text: 'Juegos',
+            color: '#7d8590',
+            font: { size: 11 },
+          },
+        },
+        y2: {
+          position: 'right',
+          min: 0, max: 100,
+          ticks: { color: '#3fb950', font: { size: 11 }, callback: v => v + '%' },
+          grid: { drawOnChartArea: false },
+          title: {
+            display: true,
+            text: 'Rating %',
+            color: '#7d8590',
+            font: { size: 11 },
+          },
+        },
+      },
+    },
+  });
+}
+
+// ─── Leyenda manual chart ──────────────────────────────────────────────────
+// (insertada tras el canvas, fuera del Chart.js)
+
+// ─── Load All ──────────────────────────────────────────────────────────────
+
+async function loadAll() {
+  document.getElementById('last-update').textContent = 'actualizando...';
+  await Promise.all([
+    loadStats(),
+    loadTopJuegos(),
+    loadMirroring(),
+    loadLinkedServer(),
+    loadBitacora(),
+    loadGeneros(),
+  ]);
+  const now = new Date().toLocaleTimeString('es-MX');
+  document.getElementById('last-update').textContent = `Última actualización: ${now}`;
+}
+
+// ─── Auto-refresh cada 30 s ────────────────────────────────────────────────
+loadAll();
+setInterval(loadAll, 30_000);
+</script>
+</body>
+</html>
